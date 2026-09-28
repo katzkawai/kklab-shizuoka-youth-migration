@@ -2,7 +2,9 @@
 
 静岡県の若年（15〜29歳）日本人の人口移動を、男女・35市町・年齢・移動先別に可視化したページです。
 
-**公開ページ：** https://katzkawai.github.io/kklab-shizuoka-youth-migration/
+**公開ページ：** https://katzkawai.org/kklab-shizuoka-youth-migration/
+
+GitHub Pages は `gh-pages` ブランチから配信しています。`main` への push は GitHub Actions（`.github/workflows/sync-gh-pages.yml`）で自動的に `gh-pages` に反映されます。
 
 ## 主な知見（2025年）
 
