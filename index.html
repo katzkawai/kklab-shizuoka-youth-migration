@@ -240,11 +240,12 @@ code { font-size: 13px; background: var(--page); border: 1px solid var(--border)
     <li>総務省「住民基本台帳人口移動報告」2025年 年報：表8-2・8-3（都道府県別）、表11-1〜11-3（市区町村別）、日本人移動者。<a href="https://www.e-stat.go.jp/stat-search/files?page=1&amp;layout=datalist&amp;cycle=7&amp;toukei=00200523&amp;tstat=000000070001&amp;tclass1=000001148746&amp;tclass2val=0&amp;year=20250&amp;month=0&amp;result_back=1">e-Stat</a></li>
     <li>総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」令和7年1月1日、日本人住民の市区町村別年齢階級別人口。<a href="https://www.e-stat.go.jp/stat-search/files?page=1&amp;layout=datalist&amp;cycle=7&amp;toukei=00200241&amp;tstat=000001039591&amp;tclass1=000001039601&amp;tclass2val=0&amp;year=20250&amp;month=0&amp;result_back=1">e-Stat</a></li>
     <li>ダウンロード：<a href="data/municipalities.csv">市町別CSV</a> ・ <a href="data/destinations.csv">移動先別CSV</a> ・ <a href="data/data.json">JSON</a></li>
+    <li>作成：このページ（e-Statからのデータ取得・集計スクリプト、可視化、本文）は、kklab の指示のもと Anthropic の <b>Claude Opus 5.5</b> を用いて作成しました。</li>
     <li>再現：<code>python scripts/build_data.py</code> がe-Statから原表を取得し、上記データを生成します（静岡新聞2026年9月28日記事の女性の数値を完全に再現することを確認済み）。</li>
   </ul>
 </section>
 
-<footer>作成：kklab ・ データ出典：総務省（e-Stat）。本ページの集計・解釈は作成者によるもので、出典元の見解ではありません。</footer>
+<footer>作成：kklab（本ページのデータ取得・集計スクリプト、可視化、文章は Anthropic の Claude Opus 5.5 を用いて作成）・ データ出典：総務省（e-Stat）。本ページの集計・解釈は作成者によるもので、出典元の見解ではありません。</footer>
 </div>
 
 <script src="data/data.js"></script>
