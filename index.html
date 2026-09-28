@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>静岡県 若年人口移動</title>
+<meta name="description" content="静岡県の15〜29歳日本人の人口移動を、男女・35市町・年齢・移動先別に可視化。総務省「住民基本台帳人口移動報告」2025年。">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --m: #2a78d6;          /* 男性 = categorical slot 1 */
+  --f: #eb6834;          /* 女性 = categorical slot 2 */
+  --pref: #1baf7a;       /* 静岡県 = slot 3 */
+  --bench: #898781;      /* 全国 = neutral benchmark */
+  --div-in: #184f95;     /* 転入超過（青）*/
+  --div-out: #b3261e;    /* 転出超過（赤）*/
+  --div-mid: #f0efec;
+  --hover: rgba(11,11,11,0.04);
+  --accent-ink: #1c5cab;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --m: #3987e5; --f: #d95926; --pref: #199e70; --bench: #898781;
+    --div-in: #5598e7; --div-out: #e66767; --div-mid: #383835;
+    --hover: rgba(255,255,255,0.05); --accent-ink: #86b6ef;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --m: #3987e5; --f: #d95926; --pref: #199e70; --bench: #898781;
+  --div-in: #5598e7; --div-out: #e66767; --div-mid: #383835;
+  --hover: rgba(255,255,255,0.05); --accent-ink: #86b6ef;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  font-size: 16px; line-height: 1.75;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 40px 0 8px; }
+.eyebrow { color: var(--ink-2); font-size: 13px; letter-spacing: .02em; margin: 0 0 6px; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+h1 { font-size: clamp(26px, 4.4vw, 38px); line-height: 1.3; margin: 0 0 14px; font-weight: 700; letter-spacing: -.01em; }
+.lede { color: var(--ink-2); font-size: 17px; max-width: 46em; margin: 0 0 8px; }
+h2 { font-size: 22px; line-height: 1.4; margin: 0 0 6px; font-weight: 700; }
+h3 { font-size: 16px; margin: 20px 0 4px; }
+section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px 24px 20px; margin: 20px 0; }
+.sub { color: var(--ink-2); margin: 0 0 14px; font-size: 15px; }
+.note { color: var(--muted); font-size: 13px; margin: 10px 0 0; line-height: 1.6; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin: 24px 0 8px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .lab { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.tile .val { font-size: 30px; font-weight: 650; line-height: 1.2; margin-top: 6px; }
+.tile .val small { font-size: 15px; font-weight: 500; color: var(--ink-2); margin-left: 2px; }
+.tile .cmp { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.sw.m { background: var(--m); } .sw.f { background: var(--f); }
+.sw.pref { background: var(--pref); border-radius: 50%; } .sw.bench { background: var(--bench); border-radius: 50%; }
+.dotk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink-2); }
+.dotk.fill { background: var(--ink-2); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 4px 0 12px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; padding: 2px; background: var(--page); }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink-2); padding: 5px 11px; border-radius: 7px; cursor: pointer; line-height: 1.3; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border); font-weight: 600; }
+.seg button:focus-visible, .linkbtn:focus-visible, .theme:focus-visible { outline: 2px solid var(--m); outline-offset: 2px; }
+.ctl-label { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); margin: 0 0 8px; }
+.chart { width: 100%; position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: inherit; }
+.tick text, .axis-label { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.row-label { fill: var(--ink); font-size: 13px; }
+.row-sub { fill: var(--muted); font-size: 11px; }
+.gridline { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.baseline { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.bar-m { fill: var(--m); } .bar-f { fill: var(--f); }
+.stroke-m { stroke: var(--m); } .stroke-f { stroke: var(--f); }
+.dot-m { fill: var(--m); stroke: var(--surface); stroke-width: 2; }
+.dot-f { fill: var(--f); stroke: var(--surface); stroke-width: 2; }
+.hollow { fill: var(--surface); stroke-width: 2.5; }
+.val-label { fill: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.val-strong { fill: var(--ink); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hit { fill: transparent; cursor: default; }
+.hit:hover, .hit:focus { fill: var(--hover); outline: none; }
+.hit:focus-visible { stroke: var(--m); stroke-width: 1.5; }
+.region-head { fill: var(--ink-2); font-size: 12px; font-weight: 600; }
+.cell { stroke: var(--surface); stroke-width: 2; }
+.peak { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 9px 11px; font-size: 13px; line-height: 1.5; min-width: 150px; max-width: 280px; opacity: 0; transition: opacity .08s; }
+#tip.on { opacity: 1; }
+#tip .t { font-weight: 600; margin-bottom: 4px; }
+#tip .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+#tip .r .n { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+#tip .r .v { font-weight: 650; font-variant-numeric: tabular-nums; }
+#tip .lk { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+#tip .foot { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.findings { margin: 0; padding-left: 1.2em; }
+.findings li { margin: 6px 0; }
+.findings b { font-weight: 650; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+table.data th:first-child, table.data td:first-child, table.data th:nth-child(2), table.data td:nth-child(2) { text-align: left; }
+table.data thead th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+.table-wrap { overflow-x: auto; max-height: 520px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; margin-top: 12px; }
+.linkbtn { font: inherit; font-size: 13px; color: var(--accent-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+a { color: var(--accent-ink); text-underline-offset: 3px; }
+.theme { font: inherit; font-size: 12px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.scale { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 0 0 10px; flex-wrap: wrap; }
+.scale .bar { width: 220px; max-width: 50vw; height: 10px; border-radius: 5px; background: linear-gradient(to right, var(--div-out), var(--div-mid), var(--div-in)); }
+footer { color: var(--muted); font-size: 13px; padding: 12px 0 48px; }
+ul.plain { padding-left: 1.2em; margin: 6px 0; }
+code { font-size: 13px; background: var(--page); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .two { grid-template-columns: 1fr; }
+  section.card { padding: 18px 14px 16px; border-radius: 12px; }
+  .tile .val { font-size: 26px; }
+}
+@media print { .controls, .theme { display: none; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div id="tip" role="status" aria-live="polite"></div>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow"><span>住民基本台帳人口移動報告 2025年 ・ 日本人 15〜29歳</span>
+    <button class="theme" id="themeBtn" type="button" aria-label="表示テーマの切り替え">テーマ：自動</button></p>
+  <h1>静岡県の若者はどこへ、なぜ偏るのか<br>男女で読み解く人口移動</h1>
+  <p class="lede">2025年、静岡県は日本人の転出超過数が全国で最も多く、女性の転出超過は全国1位、男性は2位でした。15〜29歳に絞り、男女・35市町・年齢・移動先別に転入と転出を分解すると、女性の純流出の大きさは「多く出ていく」ことよりも「入ってこない」ことで生じています。</p>
+</header>
+
+<div class="tiles" id="tiles" aria-label="主要な数値"></div>
+
+<section class="card" id="sec-age" aria-labelledby="h-age">
+  <h2 id="h-age">年代別の転出超過：女性は20代前半に集中</h2>
+  <p class="sub">静岡県全体の転出超過（他都道府県への転出 − 転入）。男性は10代後半から20代前半まで平坦、女性は20代前半に突出します。</p>
+  <div class="controls">
+    <span class="ctl-label">指標</span>
+    <div class="seg" data-ctl="ageMetric"><button data-v="count" aria-pressed="true">人数</button><button data-v="rate" aria-pressed="false">人口1000人当たり</button></div>
+  </div>
+  <div class="legend"><span class="key"><span class="sw m"></span>男性</span><span class="key"><span class="sw f"></span>女性</span></div>
+  <div class="chart" id="chart-age"></div>
+</section>
+
+<section class="card" id="sec-gross" aria-labelledby="h-gross">
+  <h2 id="h-gross">転出と転入に分解すると：女性は「入ってこない」</h2>
+  <p class="sub">線の右端が他都道府県への転出、左端が他都道府県からの転入、長さが転出超過です。転出は男性の方が多いのに、転入は女性が大きく少ない。20〜24歳で女性の転出超過が男性より864人多いのは、転入が2,038人少ないためで、転出はむしろ1,174人少なくなっています。</p>
+  <div class="controls">
+    <span class="ctl-label">指標</span>
+    <div class="seg" data-ctl="grossMetric"><button data-v="count" aria-pressed="true">人数</button><button data-v="rate" aria-pressed="false">人口1000人当たり</button></div>
+  </div>
+  <div class="legend"><span class="key"><span class="sw m"></span>男性</span><span class="key"><span class="sw f"></span>女性</span><span class="key"><span class="dotk"></span>転入</span><span class="key"><span class="dotk fill"></span>転出</span></div>
+  <div class="chart" id="chart-gross"></div>
+  <p class="note">転出者数は表8-2（移動後の住所地別転出者数）の46都道府県計、転入者数は転出者数＋転入超過数（表8-3）で算出。1000人当たりの分母は2025年1月1日の住民基本台帳人口（日本人）。</p>
+</section>
+
+<section class="card" id="sec-muni" aria-labelledby="h-muni">
+  <h2 id="h-muni">35市町：人数は都市部、人口比は伊豆・中山間</h2>
+  <p class="sub">各市町の転入超過（負の値が転出超過）。人口比ではワースト10のうち7市町が男女とも伊豆地域。女性の方が悪い市町が27、男女差が最も大きいのは松崎町（女性−134.0、男性−13.5／1000人）。</p>
+  <div class="controls">
+    <span class="ctl-label">指標</span>
+    <div class="seg" data-ctl="muniMetric"><button data-v="rate" aria-pressed="true">人口1000人当たり</button><button data-v="count" aria-pressed="false">人数</button></div>
+    <span class="ctl-label">年齢</span>
+    <div class="seg" data-ctl="muniAge"><button data-v="all" aria-pressed="true">15〜29歳</button><button data-v="15" aria-pressed="false">15〜19</button><button data-v="20" aria-pressed="false">20〜24</button><button data-v="25" aria-pressed="false">25〜29</button></div>
+    <span class="ctl-label">並び順</span>
+    <div class="seg" data-ctl="muniSort"><button data-v="f" aria-pressed="true">女性</button><button data-v="m" aria-pressed="false">男性</button><button data-v="gap" aria-pressed="false">男女差</button><button data-v="region" aria-pressed="false">地域</button></div>
+  </div>
+  <div class="legend"><span class="key"><span class="sw m" style="border-radius:50%"></span>男性</span><span class="key"><span class="sw f" style="border-radius:50%"></span>女性</span></div>
+  <div class="chart" id="chart-muni"></div>
+  <p class="note">静岡市・浜松市は市計（区間の移動を含まない）。市町の収支には県内の他市町との移動を含み、35市町の合計は県外との収支に一致します。地域区分は本ページの分析上の区分（伊豆＝熱海・伊東・下田・伊豆・伊豆の国・東伊豆・河津・南伊豆・松崎・西伊豆・函南）。小規模な町は数人の差で率が大きく動きます。</p>
+  <p style="margin:10px 0 0"><button class="linkbtn" id="tableBtn" aria-expanded="false" aria-controls="muniTable">表で見る</button></p>
+  <div class="table-wrap" id="muniTable" hidden></div>
+</section>
+
+<section class="card" id="sec-heat" aria-labelledby="h-heat">
+  <h2 id="h-heat">年齢 × 市町：男性の20代は西部で転入超過</h2>
+  <p class="sub">人口1000人当たりの転入超過。赤は転出超過、青は転入超過。枠線は各市町・性別で転出超過が最も大きい年齢。浜松・袋井・湖西では20〜24歳の男性が転入超過なのに、同年代の女性は流出しています。</p>
+  <div class="scale"><span>転出超過 −60</span><span class="bar" aria-hidden="true"></span><span>+60 転入超過（人／1000人）</span><span>列＝年齢階級（15＝15〜19歳）</span><span class="key" style="margin-left:8px"><svg width="14" height="14" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>最大の転出超過</span></div>
+  <div class="chart" id="chart-heat"></div>
+  <p class="note">±60を超える値は色の上限で表示（数値はホバーまたは表で確認できます）。転入超過の市町の数：15〜19歳 男3・女0、20〜24歳 男4・女1、25〜29歳 男11・女6。</p>
+</section>
+
+<section class="card" id="sec-dest" aria-labelledby="h-dest">
+  <h2 id="h-dest">移動先：東京・神奈川で約8割、男性は愛知の比重が大きい</h2>
+  <p class="sub">静岡県から見た転出超過の相手先（上位7都府県とその他）。東京・神奈川の占有率は男性78.2%・女性79.1%とほぼ同じですが、愛知県は男性17.5%・女性11.6%。その他の39道府県に対しては、合計で男女とも転入超過です。</p>
+  <div class="controls">
+    <span class="ctl-label">年齢</span>
+    <div class="seg" data-ctl="destAge"><button data-v="all" aria-pressed="true">15〜29歳</button><button data-v="15" aria-pressed="false">15〜19</button><button data-v="20" aria-pressed="false">20〜24</button><button data-v="25" aria-pressed="false">25〜29</button></div>
+  </div>
+  <div class="legend"><span class="key"><span class="sw m"></span>男性</span><span class="key"><span class="sw f"></span>女性</span></div>
+  <div class="chart" id="chart-dest"></div>
+</section>
+
+<section class="card" id="sec-ratio" aria-labelledby="h-ratio">
+  <h2 id="h-ratio">積み重なった結果：20代の性比の歪み</h2>
+  <p class="sub">2025年1月1日時点の日本人人口の性比（女性100人に対する男性の数）。全国は各年代とも約105ですが、静岡県は20〜24歳110.7、25〜29歳114.6。過去の女性の転出超過が蓄積しています。</p>
+  <div class="legend"><span class="key"><span class="sw pref"></span>静岡県</span><span class="key"><span class="sw bench"></span>全国</span></div>
+  <div class="chart" id="chart-ratio"></div>
+</section>
+
+<section class="card" aria-labelledby="h-find">
+  <h2 id="h-find">読み取れること</h2>
+  <ul class="findings">
+    <li><b>男女差の源泉は転入の不足。</b>他都道府県への転出は男性15,378人・女性12,138人と男性が多い一方、転入は男性11,907人・女性8,069人。人口比でも20〜24歳の転出率は男性92.3‰・女性85.9‰、転入率は男性75.6‰・女性55.4‰です。</li>
+    <li><b>戻り・呼び込みの弱さ。</b>転入÷転出は東京都との間で男性0.50・女性0.41、神奈川県との間で男性0.65・女性0.46。</li>
+    <li><b>就職期の労働市場の性別偏り（仮説）。</b>西部の製造業集積地域では20代前半の男性が転入超過、女性は転出超過。同じ地域労働市場が若年男性だけを吸収している可能性があります。</li>
+    <li><b>地域構造は男女共通。</b>人数では静岡・浜松・富士などの都市部、人口比では伊豆・中山間地域で流出が重い。</li>
+    <li><b>政策含意。</b>「女性の流出を止める」よりも、「女性の転入・還流（U/Iターン）を生む雇用と職種の多様化」に焦点を置く方がデータと整合的です。</li>
+  </ul>
+  <h3>留意点</h3>
+  <ul class="plain note" style="font-size:14px">
+    <li>労働市場の性別偏りによる説明は仮説です。学校基本調査（就職先の産業、県外就職）、雇用動向調査などの男女別データでの検証が必要です。</li>
+    <li>御殿場市の15〜19歳男性の転入（239人、女性48人）のように、特定機関への配属など男性に特有の移動が混じっている可能性があります（未検証）。</li>
+    <li>住民票を移さない進学・就職は含まれません。捕捉漏れの男女差は不明です。</li>
+    <li>2025年の単年データです。小規模な町は複数年平均で確認するのが望ましい。</li>
+    <li>20代女性の人口は過去の流出で既に小さく、1000人当たりの率は累積的な影響を過小に表します。</li>
+  </ul>
+</section>
+
+<section class="card" aria-labelledby="h-data">
+  <h2 id="h-data">データと再現方法</h2>
+  <ul class="plain" style="font-size:14px">
+    <li>総務省「住民基本台帳人口移動報告」2025年 年報：表8-2・8-3（都道府県別）、表11-1〜11-3（市区町村別）、日本人移動者。<a href="https://www.e-stat.go.jp/stat-search/files?page=1&amp;layout=datalist&amp;cycle=7&amp;toukei=00200523&amp;tstat=000000070001&amp;tclass1=000001148746&amp;tclass2val=0&amp;year=20250&amp;month=0&amp;result_back=1">e-Stat</a></li>
+    <li>総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」令和7年1月1日、日本人住民の市区町村別年齢階級別人口。<a href="https://www.e-stat.go.jp/stat-search/files?page=1&amp;layout=datalist&amp;cycle=7&amp;toukei=00200241&amp;tstat=000001039591&amp;tclass1=000001039601&amp;tclass2val=0&amp;year=20250&amp;month=0&amp;result_back=1">e-Stat</a></li>
+    <li>ダウンロード：<a href="data/municipalities.csv">市町別CSV</a> ・ <a href="data/destinations.csv">移動先別CSV</a> ・ <a href="data/data.json">JSON</a></li>
+    <li>再現：<code>python scripts/build_data.py</code> がe-Statから原表を取得し、上記データを生成します（静岡新聞2026年9月28日記事の女性の数値を完全に再現することを確認済み）。</li>
+  </ul>
+</section>
+
+<footer>作成：kklab ・ データ出典：総務省（e-Stat）。本ページの集計・解釈は作成者によるもので、出典元の見解ではありません。</footer>
+</div>
+
+<script src="data/data.js"></script>
+<script>
+(() => {
+  "use strict";
+  const D = window.DATA;
+  const M = D.municipalities, DEST = D.destinations, POP = D.population;
+  const AGES = ["15", "20", "25"];
+  const AGE_LABEL = { "15": "15〜19歳", "20": "20〜24歳", "25": "25〜29歳", all: "15〜29歳" };
+  const SEX_LABEL = { m: "男性", f: "女性" };
+  const NS = "http://www.w3.org/2000/svg";
+  const fmt = new Intl.NumberFormat("ja-JP");
+  const f1 = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const sign = (v, f = fmt) => (v > 0 ? "+" : v < 0 ? "−" : "±") + f.format(Math.abs(v));
+
+  // ---------- helpers ----------
+  const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+  const ages = (a) => (a === "all" ? AGES : [a]);
+  const mv = (m, s, a, field) => sum(ages(a).map((k) => m[`${s}${k}_${field}`]));
+  const dv = (d, s, a, field) => sum(ages(a).map((k) => d[`${s}${k}_${field}`]));
+  const prefPop = (s, a) => sum(ages(a).map((k) => POP["静岡県"][s + k]));
+
+  function el(tag, attrs = {}, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, cls, anchor = "start", extra = {}) {
+    const t = el("text", { x, y, class: cls, "text-anchor": anchor, ...extra }, parent);
+    t.textContent = s;
+    return t;
+  }
+  function niceTicks(min, max, n = 5) {
+    const span = max - min || 1;
+    const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= n) || 10 * mag;
+    const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+    const out = [];
+    for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(6));
+    return out;
+  }
+  function roundedBar(x, y, w, h, r, dir) {
+    // dir: 'up' (rounded top), 'right' (rounded right end), 'left' (rounded left end)
+    r = Math.min(r, Math.abs(dir === "up" ? w : h) / 2, Math.abs(dir === "up" ? h : w));
+    if (dir === "up") return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+    if (dir === "right") return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+    return `M${x + w},${y}H${x + r}Q${x},${y} ${x},${y + r}V${y + h - r}Q${x},${y + h} ${x + r},${y + h}H${x + w}Z`;
+  }
+  function svgFor(container, height) {
+    container.innerHTML = "";
+    const width = Math.max(300, container.clientWidth);
+    const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, width, height, role: "img" }, container);
+    return { svg, width };
+  }
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById("tip");
+  function showTip(evt, title, rows, foot) {
+    tip.replaceChildren();
+    const t = document.createElement("div"); t.className = "t"; t.textContent = title; tip.appendChild(t);
+    for (const r of rows) {
+      const row = document.createElement("div"); row.className = "r";
+      const n = document.createElement("span"); n.className = "n";
+      if (r.color) { const k = document.createElement("span"); k.className = "lk"; k.style.background = `var(${r.color})`; n.appendChild(k); }
+      n.appendChild(document.createTextNode(r.name));
+      const v = document.createElement("span"); v.className = "v"; v.textContent = r.value;
+      row.append(n, v); tip.appendChild(row);
+    }
+    if (foot) { const f = document.createElement("div"); f.className = "foot"; f.textContent = foot; tip.appendChild(f); }
+    tip.classList.add("on");
+    let x, y;
+    if (evt && evt.clientX !== undefined && evt.type !== "focus") { x = evt.clientX; y = evt.clientY; }
+    else { const b = evt.target.getBoundingClientRect(); x = b.left + b.width / 2; y = b.top; }
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = x + 14, top = y - th - 12;
+    if (left + tw > window.innerWidth - 8) left = x - tw - 14;
+    if (left < 8) left = 8;
+    if (top < 8) top = y + 18;
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  const hideTip = () => tip.classList.remove("on");
+  function bindTip(node, fn) {
+    node.setAttribute("tabindex", "0");
+    const h = (e) => { const c = fn(); showTip(e, c.title, c.rows, c.foot); };
+    node.addEventListener("pointerenter", h);
+    node.addEventListener("pointermove", h);
+    node.addEventListener("focus", h);
+    node.addEventListener("pointerleave", hideTip);
+    node.addEventListener("blur", hideTip);
+  }
+  window.addEventListener("scroll", hideTip, { passive: true });
+
+  // ---------- state & controls ----------
+  const state = { ageMetric: "count", grossMetric: "count", muniMetric: "rate", muniAge: "all", muniSort: "f", destAge: "all" };
+  document.querySelectorAll(".seg").forEach((seg) => {
+    const key = seg.dataset.ctl;
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      state[key] = b.dataset.v;
+      seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      renderAll();
+    });
+  });
+
+  // ---------- derived numbers ----------
+  const prefNet = (s, a) => sum(M.map((m) => mv(m, s, a, "net")));
+  const grossOut = (s, a) => sum(DEST.map((d) => dv(d, s, a, "out")));
+  const grossIn = (s, a) => grossOut(s, a) + prefNet(s, a);
+
+  // ---------- tiles ----------
+  function renderTiles() {
+    const t = document.getElementById("tiles");
+    const dIn = grossIn("m", "20") - grossIn("f", "20");
+    const dOut = grossOut("m", "20") - grossOut("f", "20");
+    const sr20 = (POP["静岡県"].m20 / POP["静岡県"].f20) * 100, sr20jp = (POP["全国"].m20 / POP["全国"].f20) * 100;
+    const items = [
+      { lab: "女性の転出超過（15〜29歳）", val: fmt.format(-prefNet("f", "all")), unit: "人", cmp: `人口1000人当たり ${f1.format(-prefNet("f", "all") / prefPop("f", "all") * 1000)}` },
+      { lab: "男性の転出超過（15〜29歳）", val: fmt.format(-prefNet("m", "all")), unit: "人", cmp: `人口1000人当たり ${f1.format(-prefNet("m", "all") / prefPop("m", "all") * 1000)}` },
+      { lab: "20〜24歳・女性の転入の不足（対男性）", val: fmt.format(dIn), unit: "人", cmp: `転出はむしろ ${fmt.format(dOut)}人少ない` },
+      { lab: "20〜24歳の性比（女性100対男性）", val: f1.format(sr20), unit: "", cmp: `全国 ${f1.format(sr20jp)}` },
+    ];
+    t.replaceChildren();
+    for (const it of items) {
+      const d = document.createElement("div"); d.className = "tile";
+      const l = document.createElement("div"); l.className = "lab"; l.textContent = it.lab;
+      const v = document.createElement("div"); v.className = "val"; v.textContent = it.val;
+      if (it.unit) { const u = document.createElement("small"); u.textContent = it.unit; v.appendChild(u); }
+      const c = document.createElement("div"); c.className = "cmp"; c.textContent = it.cmp;
+      d.append(l, v, c); t.appendChild(d);
+    }
+  }
+
+  // ---------- chart 1: age columns ----------
+  function renderAge() {
+    const box = document.getElementById("chart-age");
+    const rate = state.ageMetric === "rate";
+    const H = 310, pad = { l: 48, r: 12, t: 34, b: 34 };
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "年代別・男女別の転出超過");
+    const val = (s, a) => { const n = -prefNet(s, a); return rate ? (n / prefPop(s, a)) * 1000 : n; };
+    const vals = AGES.flatMap((a) => ["m", "f"].map((s) => val(s, a)));
+    const ticks = niceTicks(0, Math.max(...vals) * 1.08, 4);
+    const ymax = ticks[ticks.length - 1];
+    const iw = width - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const y = (v) => pad.t + ih - (v / ymax) * ih;
+    for (const tk of ticks) {
+      el("line", { x1: pad.l, x2: width - pad.r, y1: y(tk), y2: y(tk), class: tk === 0 ? "baseline" : "gridline" }, svg);
+      txt(svg, pad.l - 8, y(tk) + 4, rate ? fmt.format(tk) : fmt.format(tk), "tick axis-label", "end");
+    }
+    txt(svg, 0, 12, rate ? "単位：人／1000人" : "単位：人", "axis-label", "start");
+    const band = iw / AGES.length, bw = Math.min(24, band / 4);
+    AGES.forEach((a, i) => {
+      const cx = pad.l + band * i + band / 2;
+      txt(svg, cx, H - 10, AGE_LABEL[a], "tick axis-label", "middle");
+      ["m", "f"].forEach((s, j) => {
+        const v = val(s, a), x = cx + (j === 0 ? -bw - 1 : 1);
+        el("path", { d: roundedBar(x, y(v), bw, y(0) - y(v), 4, "up"), class: `bar-${s}` }, svg);
+        // 隣り合う値ラベルが重ならないよう、左の棒は右揃え・右の棒は左揃えで外側へ寄せる
+        txt(svg, j === 0 ? cx - 3 : cx + 3, y(v) - 6, rate ? f1.format(v) : fmt.format(v), "val-label", j === 0 ? "end" : "start");
+      });
+      const hit = el("rect", { x: cx - band / 2 + 4, y: pad.t, width: band - 8, height: ih, class: "hit", rx: 6 }, svg);
+      bindTip(hit, () => ({
+        title: AGE_LABEL[a] + "の転出超過",
+        rows: ["m", "f"].map((s) => ({ name: SEX_LABEL[s], color: `--${s}`, value: rate ? f1.format(val(s, a)) + "‰" : fmt.format(val(s, a)) + "人" })),
+        foot: `人数 男${fmt.format(-prefNet("m", a))}・女${fmt.format(-prefNet("f", a))} ／ 1000人当たり 男${f1.format(-prefNet("m", a) / prefPop("m", a) * 1000)}・女${f1.format(-prefNet("f", a) / prefPop("f", a) * 1000)}`,
+      }));
+      svg.appendChild(hit);
+    });
+  }
+
+  // ---------- chart 2: gross dumbbell ----------
+  function renderGross() {
+    const box = document.getElementById("chart-gross");
+    const rate = state.grossMetric === "rate";
+    const rows = AGES.flatMap((a) => ["m", "f"].map((s) => ({ a, s })));
+    const rowH = 40, gapG = 14, pad = { l: 92, r: 70, t: 26, b: 46 };
+    const H = pad.t + pad.b + rows.length * rowH + gapG * (AGES.length - 1);
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "年代・男女別の転入と転出");
+    const q = (s, a, which) => { const v = which === "in" ? grossIn(s, a) : grossOut(s, a); return rate ? (v / prefPop(s, a)) * 1000 : v; };
+    const all = rows.flatMap((r) => [q(r.s, r.a, "in"), q(r.s, r.a, "out")]);
+    const ticks = niceTicks(0, Math.max(...all) * 1.02, width < 560 ? 3 : 5);
+    const xmax = ticks[ticks.length - 1];
+    const iw = width - pad.l - pad.r;
+    const x = (v) => pad.l + (v / xmax) * iw;
+    const bottom = H - pad.b;
+    for (const tk of ticks) {
+      el("line", { x1: x(tk), x2: x(tk), y1: pad.t - 6, y2: bottom, class: tk === 0 ? "baseline" : "gridline" }, svg);
+      txt(svg, x(tk), bottom + 18, tk < 0 ? "−" + fmt.format(-tk) : fmt.format(tk), "tick axis-label", "middle");
+    }
+    txt(svg, pad.l, bottom + 38, rate ? "単位：人／1000人" : "単位：人", "axis-label", "start");
+    txt(svg, width - 4, pad.t - 10, "転出超過", "axis-label", "end");
+    rows.forEach((r, i) => {
+      const g = AGES.indexOf(r.a);
+      const cy = pad.t + i * rowH + g * gapG + rowH / 2;
+      if (r.s === "m") txt(svg, 4, cy + rowH / 2 + 4, AGE_LABEL[r.a], "row-label", "start", { "font-weight": 600 });
+      txt(svg, pad.l - 12, cy + 4, SEX_LABEL[r.s], "row-sub", "end");
+      const vi = q(r.s, r.a, "in"), vo = q(r.s, r.a, "out");
+      el("line", { x1: x(vi), x2: x(vo), y1: cy, y2: cy, class: `stroke-${r.s}`, "stroke-width": 3, "stroke-linecap": "round", opacity: 0.55 }, svg);
+      el("circle", { cx: x(vi), cy, r: 6, class: `hollow stroke-${r.s}` }, svg);
+      el("circle", { cx: x(vo), cy, r: 6, class: `dot-${r.s}` }, svg);
+      const net = vo - vi;
+      txt(svg, width - 4, cy + 4, rate ? f1.format(net) : fmt.format(Math.round(net)), "val-strong", "end");
+      const hit = el("rect", { x: 0, y: cy - rowH / 2 + 2, width, height: rowH - 4, rx: 6, class: "hit" }, svg);
+      bindTip(hit, () => ({
+        title: `${AGE_LABEL[r.a]}・${SEX_LABEL[r.s]}`,
+        rows: [
+          { name: "転出", color: `--${r.s}`, value: rate ? f1.format(vo) + "‰" : fmt.format(vo) + "人" },
+          { name: "転入", color: `--${r.s}`, value: rate ? f1.format(vi) + "‰" : fmt.format(vi) + "人" },
+          { name: "転出超過", value: rate ? f1.format(net) + "‰" : fmt.format(Math.round(net)) + "人" },
+          { name: "転入÷転出", value: (grossIn(r.s, r.a) / grossOut(r.s, r.a)).toFixed(3) },
+        ],
+      }));
+    });
+  }
+
+  // ---------- chart 3: municipality dumbbell ----------
+  const REG_ORDER = ["伊豆", "東部", "中部", "西部"];
+  function muniVal(m, s) {
+    const n = mv(m, s, state.muniAge, "net");
+    return state.muniMetric === "rate" ? (n / mv(m, s, state.muniAge, "pop")) * 1000 : n;
+  }
+  function sortedMunis() {
+    const arr = M.slice();
+    const k = state.muniSort;
+    if (k === "region") arr.sort((a, b) => REG_ORDER.indexOf(a.region) - REG_ORDER.indexOf(b.region) || muniVal(a, "f") - muniVal(b, "f"));
+    else if (k === "gap") arr.sort((a, b) => (muniVal(a, "f") - muniVal(a, "m")) - (muniVal(b, "f") - muniVal(b, "m")));
+    else arr.sort((a, b) => muniVal(a, k) - muniVal(b, k));
+    return arr;
+  }
+  function renderMuni() {
+    const box = document.getElementById("chart-muni");
+    const rate = state.muniMetric === "rate";
+    const arr = sortedMunis();
+    const rowH = 22, pad = { l: 118, r: 16, t: 30, b: 34 };
+    const regionBreaks = state.muniSort === "region";
+    const H = pad.t + pad.b + arr.length * rowH + (regionBreaks ? 4 * 18 : 0);
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "35市町の男女別転入超過");
+    const vals = arr.flatMap((m) => [muniVal(m, "m"), muniVal(m, "f")]);
+    const ticks = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals), width < 560 ? 3 : 6);
+    const lo = ticks[0], hi = ticks[ticks.length - 1];
+    const iw = width - pad.l - pad.r;
+    const x = (v) => pad.l + ((v - lo) / (hi - lo)) * iw;
+    const bottom = H - pad.b;
+    for (const tk of ticks) {
+      el("line", { x1: x(tk), x2: x(tk), y1: pad.t - 4, y2: bottom, class: tk === 0 ? "baseline" : "gridline" }, svg);
+      txt(svg, x(tk), bottom + 18, tk < 0 ? "−" + fmt.format(-tk) : fmt.format(tk), "tick axis-label", "middle");
+    }
+    txt(svg, x(lo), pad.t - 14, "← 転出超過", "axis-label", "start");
+    txt(svg, x(hi), pad.t - 14, "転入超過 →", "axis-label", "end");
+    txt(svg, width - pad.r, bottom + 32, rate ? "人／1000人（" + AGE_LABEL[state.muniAge] + "）" : "人（" + AGE_LABEL[state.muniAge] + "）", "axis-label", "end");
+    let yoff = pad.t, lastReg = null;
+    arr.forEach((m) => {
+      if (regionBreaks && m.region !== lastReg) {
+        txt(svg, 4, yoff + 13, m.region, "region-head");
+        yoff += 18;
+        lastReg = m.region;
+      }
+      const cy = yoff + rowH / 2;
+      txt(svg, pad.l - 10, cy + 4, m.name, "row-label", "end");
+      if (!regionBreaks) txt(svg, 4, cy + 4, m.region, "row-sub");
+      const vm = muniVal(m, "m"), vf = muniVal(m, "f");
+      el("line", { x1: x(vm), x2: x(vf), y1: cy, y2: cy, stroke: "var(--axis)", "stroke-width": 2 }, svg);
+      el("circle", { cx: x(vm), cy, r: 5, class: "dot-m" }, svg);
+      el("circle", { cx: x(vf), cy, r: 5, class: "dot-f" }, svg);
+      const hit = el("rect", { x: 0, y: yoff + 1, width, height: rowH - 2, rx: 4, class: "hit" }, svg);
+      bindTip(hit, () => {
+        const rows = ["m", "f"].map((s) => {
+          const n = mv(m, s, state.muniAge, "net"), p = mv(m, s, state.muniAge, "pop");
+          return { name: SEX_LABEL[s], color: `--${s}`, value: `${sign(n)}人（${sign(n / p * 1000, f1)}‰）` };
+        });
+        return { title: `${m.name}（${m.region}）・${AGE_LABEL[state.muniAge]}`, rows, foot: "転入超過数（負は転出超過）と人口1000人当たり" };
+      });
+      yoff += rowH;
+    });
+  }
+
+  function renderTable() {
+    const wrap = document.getElementById("muniTable");
+    if (wrap.hidden) return;
+    const t = document.createElement("table"); t.className = "data";
+    const cols = ["市町", "地域"];
+    for (const s of ["m", "f"]) for (const a of ["15", "20", "25", "all"]) cols.push(`${SEX_LABEL[s]} ${AGE_LABEL[a]}`);
+    for (const s of ["m", "f"]) cols.push(`${SEX_LABEL[s]} 1000人当たり（15〜29歳）`);
+    const thead = t.createTHead().insertRow();
+    for (const c of cols) { const th = document.createElement("th"); th.textContent = c; thead.appendChild(th); }
+    const tb = t.createTBody();
+    for (const m of M.slice().sort((a, b) => a.code.localeCompare(b.code))) {
+      const tr = tb.insertRow();
+      const cells = [m.name, m.region];
+      for (const s of ["m", "f"]) for (const a of ["15", "20", "25", "all"]) cells.push(fmt.format(mv(m, s, a, "net")));
+      for (const s of ["m", "f"]) cells.push(f1.format(mv(m, s, "all", "net") / mv(m, s, "all", "pop") * 1000));
+      for (const c of cells) { const td = tr.insertCell(); td.textContent = c; }
+    }
+    wrap.replaceChildren(t);
+  }
+  document.getElementById("tableBtn").addEventListener("click", (e) => {
+    const wrap = document.getElementById("muniTable");
+    wrap.hidden = !wrap.hidden;
+    e.target.setAttribute("aria-expanded", String(!wrap.hidden));
+    e.target.textContent = wrap.hidden ? "表で見る" : "表を閉じる";
+    renderTable();
+  });
+
+  // ---------- chart 4: heatmap ----------
+  function heatColor(v) {
+    const cap = 60, t = Math.max(-1, Math.min(1, v / cap));
+    const pct = Math.round(Math.pow(Math.abs(t), 0.8) * 100);
+    const pole = t < 0 ? "var(--div-out)" : "var(--div-in)";
+    return `color-mix(in oklab, ${pole} ${pct}%, var(--div-mid))`;
+  }
+  function renderHeat() {
+    const box = document.getElementById("chart-heat");
+    const arr = M.slice().sort((a, b) => REG_ORDER.indexOf(a.region) - REG_ORDER.indexOf(b.region) || a.code.localeCompare(b.code));
+    const rowH = 22, pad = { l: 118, r: 8, t: 50, b: 8 }, regGap = 14;
+    const H = pad.t + pad.b + arr.length * rowH + regGap * 3;
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "年齢×市町の転入超過ヒートマップ");
+    const cols = [];
+    for (const s of ["m", "f"]) for (const a of AGES) cols.push({ s, a });
+    const sexGap = 14;
+    const cw = Math.min(88, (width - pad.l - pad.r - sexGap) / cols.length);
+    const cx = (i) => pad.l + i * cw + (i >= 3 ? sexGap : 0);
+    ["m", "f"].forEach((s, j) => {
+      const x0 = cx(j * 3), x1 = cx(j * 3 + 2) + cw;
+      el("rect", { x: x0 + 2, y: 8, width: 10, height: 10, rx: 3, class: `bar-${s}` }, svg);
+      txt(svg, x0 + 16, 17, SEX_LABEL[s], "row-label", "start", { "font-weight": 600 });
+      el("line", { x1: x0 + 2, x2: x1 - 2, y1: 24, y2: 24, class: "gridline" }, svg);
+    });
+    const short = cw < 56;
+    cols.forEach((c, i) => txt(svg, cx(i) + cw / 2, 42, short ? c.a : AGE_LABEL[c.a].replace("歳", ""), "tick axis-label", "middle"));
+    let y = pad.t, last = null;
+    arr.forEach((m) => {
+      if (m.region !== last) {
+        if (last !== null) y += regGap;
+        last = m.region;
+        txt(svg, 4, y + 15, m.region, "region-head");
+      }
+      txt(svg, pad.l - 10, y + 15, m.name, "row-label", "end");
+      const peak = {};
+      for (const s of ["m", "f"]) {
+        let best = null;
+        for (const a of AGES) { const v = m[`${s}${a}_net`]; if (v < 0 && (best === null || v < m[`${s}${best}_net`])) best = a; }
+        peak[s] = best;
+      }
+      cols.forEach((c, i) => {
+        const v = (m[`${c.s}${c.a}_net`] / m[`${c.s}${c.a}_pop`]) * 1000;
+        const r = el("rect", { x: cx(i), y, width: cw, height: rowH, rx: 3, class: "cell" }, svg);
+        r.style.fill = heatColor(v);
+        if (peak[c.s] === c.a) el("rect", { x: cx(i) + 3, y: y + 3, width: cw - 6, height: rowH - 6, rx: 2, class: "peak" }, svg);
+      });
+      const hit = el("rect", { x: 0, y: y + 1, width, height: rowH - 2, rx: 4, class: "hit" }, svg);
+      bindTip(hit, () => ({
+        title: `${m.name}（${m.region}）`,
+        rows: cols.map((c) => {
+          const n = m[`${c.s}${c.a}_net`], p = m[`${c.s}${c.a}_pop`];
+          return { name: `${SEX_LABEL[c.s]} ${AGE_LABEL[c.a]}`, color: `--${c.s}`, value: `${sign(n)}人（${sign(n / p * 1000, f1)}‰）` };
+        }),
+        foot: "転入超過数（負は転出超過）",
+      }));
+      y += rowH;
+    });
+  }
+
+  // ---------- chart 5: destinations ----------
+  function renderDest() {
+    const box = document.getElementById("chart-dest");
+    const a = state.destAge;
+    const TOP = ["東京都", "神奈川県", "愛知県", "千葉県", "埼玉県", "大阪府", "京都府"];
+    const rows = TOP.map((p) => ({ label: p, d: DEST.find((x) => x.pref === p) }));
+    const others = DEST.filter((x) => !TOP.includes(x.pref));
+    const val = (r, s) => (r.d ? -dv(r.d, s, a, "net") : -sum(others.map((o) => dv(o, s, a, "net"))));
+    rows.push({ label: box.clientWidth < 560 ? `その他${others.length}` : `その他${others.length}道府県`, d: null });
+    const rowH = 44, pad = { l: 116, r: 16, t: 24, b: 46 };
+    const H = pad.t + pad.b + rows.length * rowH;
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "移動先別の転出超過");
+    const vals = rows.flatMap((r) => [val(r, "m"), val(r, "f")]);
+    const ticks = niceTicks(Math.min(0, ...vals) * 1.35, Math.max(...vals) * 1.12, width < 560 ? 3 : 5);
+    const lo = ticks[0], hi = ticks[ticks.length - 1];
+    const iw = width - pad.l - pad.r;
+    const x = (v) => pad.l + ((v - lo) / (hi - lo)) * iw;
+    const bottom = H - pad.b;
+    for (const tk of ticks) {
+      el("line", { x1: x(tk), x2: x(tk), y1: pad.t, y2: bottom, class: tk === 0 ? "baseline" : "gridline" }, svg);
+      txt(svg, x(tk), bottom + 18, tk < 0 ? "−" + fmt.format(-tk) : fmt.format(tk), "tick axis-label", "middle");
+    }
+    txt(svg, pad.l, bottom + 38, "単位：人", "axis-label", "start");
+    txt(svg, x(0) - 6, 12, "← 転入超過", "axis-label", "end");
+    txt(svg, x(0) + 6, 12, "転出超過 →", "axis-label", "start");
+    const totals = { m: -prefNet("m", a), f: -prefNet("f", a) };
+    const bh = 14;
+    rows.forEach((r, i) => {
+      const cy = pad.t + i * rowH + rowH / 2;
+      txt(svg, pad.l - 10, cy + 4, r.label, "row-label", "end");
+      ["m", "f"].forEach((s, j) => {
+        const v = val(r, s), y0 = cy - bh - 1 + j * (bh + 2);
+        const x0 = Math.min(x(0), x(v)), w = Math.abs(x(v) - x(0));
+        if (w > 0.5) el("path", { d: roundedBar(x0, y0, w, bh, 4, v >= 0 ? "right" : "left"), class: `bar-${s}` }, svg);
+        // 負の値（転入超過）は棒が左へ伸びるため、行ラベルとの衝突を避けて基準線の右に置く
+        txt(svg, x(0) + (v >= 0 ? w + 6 : 6), y0 + bh - 3, v < 0 ? "−" + fmt.format(-v) : fmt.format(v), "val-label", "start");
+      });
+      const hit = el("rect", { x: 0, y: cy - rowH / 2 + 2, width, height: rowH - 4, rx: 6, class: "hit" }, svg);
+      bindTip(hit, () => ({
+        title: `${r.label}・${AGE_LABEL[a]}`,
+        rows: ["m", "f"].flatMap((s) => {
+          const v = val(r, s);
+          const out = r.d ? dv(r.d, s, a, "out") : sum(others.map((o) => dv(o, s, a, "out")));
+          return [
+            { name: `${SEX_LABEL[s]} 転出超過`, color: `--${s}`, value: `${fmt.format(v)}人（${f1.format(v / totals[s] * 100)}%）` },
+            { name: `${SEX_LABEL[s]} 転出／転入`, value: `${fmt.format(out)} ／ ${fmt.format(out - v)}` },
+          ];
+        }),
+        foot: "負の転出超過は、その相手に対して静岡県が転入超過",
+      }));
+    });
+  }
+
+  // ---------- chart 6: sex ratio ----------
+  function renderRatio() {
+    const box = document.getElementById("chart-ratio");
+    const H = 250, pad = { l: 48, r: 90, t: 20, b: 34 };
+    const { svg, width } = svgFor(box, H);
+    svg.setAttribute("aria-label", "年代別の性比：静岡県と全国");
+    const sr = (area, a) => (POP[area]["m" + a] / POP[area]["f" + a]) * 100;
+    const series = [{ area: "静岡県", cls: "--pref" }, { area: "全国", cls: "--bench" }];
+    const lo = 100, hi = 116;
+    const ticks = [100, 104, 108, 112, 116];
+    const iw = width - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const x = (i) => pad.l + (iw / (AGES.length - 1)) * i;
+    const y = (v) => pad.t + ih - ((v - lo) / (hi - lo)) * ih;
+    for (const tk of ticks) {
+      el("line", { x1: pad.l, x2: width - pad.r, y1: y(tk), y2: y(tk), class: "gridline" }, svg);
+      txt(svg, pad.l - 8, y(tk) + 4, String(tk), "tick axis-label", "end");
+    }
+    AGES.forEach((a, i) => txt(svg, x(i), H - 10, AGE_LABEL[a], "tick axis-label", "middle"));
+    for (const s of series) {
+      const pts = AGES.map((a, i) => [x(i), y(sr(s.area, a))]);
+      el("polyline", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: `var(${s.cls})`, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      pts.forEach(([px, py]) => el("circle", { cx: px, cy: py, r: 5, fill: `var(${s.cls})`, stroke: "var(--surface)", "stroke-width": 2 }, svg));
+      const last = pts[pts.length - 1];
+      txt(svg, last[0] + 12, last[1] + 4, `${s.area} ${f1.format(sr(s.area, "25"))}`, "val-strong");
+    }
+    AGES.forEach((a, i) => {
+      const band = iw / (AGES.length - 1);
+      const hit = el("rect", { x: x(i) - band / 2, y: pad.t, width: band, height: ih, class: "hit" }, svg);
+      bindTip(hit, () => ({
+        title: `${AGE_LABEL[a]}の性比`,
+        rows: series.map((s) => ({ name: s.area, color: s.cls, value: f1.format(sr(s.area, a)) })),
+        foot: `静岡県 男${fmt.format(POP["静岡県"]["m" + a])}人・女${fmt.format(POP["静岡県"]["f" + a])}人`,
+      }));
+    });
+  }
+
+  // ---------- theme toggle ----------
+  const themeBtn = document.getElementById("themeBtn");
+  const THEMES = ["auto", "light", "dark"], TNAME = { auto: "自動", light: "ライト", dark: "ダーク" };
+  let theme = "auto";
+  try { theme = localStorage.getItem("kklab-theme") || "auto"; } catch (e) { /* storage unavailable */ }
+  const applyTheme = () => {
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    themeBtn.textContent = "テーマ：" + TNAME[theme];
+  };
+  themeBtn.addEventListener("click", () => {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % 3];
+    try { localStorage.setItem("kklab-theme", theme); } catch (e) { /* ignore */ }
+    applyTheme();
+  });
+  applyTheme();
+
+  function renderAll() {
+    renderTiles(); renderAge(); renderGross(); renderMuni(); renderTable(); renderHeat(); renderDest(); renderRatio();
+  }
+  renderAll();
+  let rt;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 120); });
+})();
+</script>
+</body>
+</html>
